@@ -1,0 +1,21 @@
+As part of the hiring process, we request you to complete the assigned task before we proceed further with your application. Please find the task details below.
+Build a backend with two REST APIs using FastAPI (or similar):
+
+Document Ingestion API
+Upload .pdf or .txt files
+Extract text, apply two chunking strategies (selectable)
+Generate embeddings & store in Pinecone/Qdrant/Weaviate/Milvus
+Save metadata in SQL/NoSQL DB
+Conversational RAG API
+Custom RAG (no RetrievalQAChain)
+Use Redis for chat memory
+Handle multi-turn queries
+Support interview booking (name, email, date, time) using  LLM
+Store booking info
+Constraints:
+
+No FAISS/Chroma, no UI, no RetrievalQAChain clean modular code following industry standards for typing and annotations
+
+Kindly submit the task via a GitHub link in your reply to this email at your earliest convenience.
+ 
+Note: Please submit the assigned task within 48 hours.
