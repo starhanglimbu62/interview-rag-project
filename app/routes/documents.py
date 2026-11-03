@@ -1,4 +1,5 @@
-from functools import lru_cache
+﻿from functools import lru_cache
+from uuid import uuid4
 
 from fastapi import (
     APIRouter,
@@ -17,6 +18,7 @@ from app.services.embedding_service import (
     EmbeddingService,
     VECTOR_SIZE
 )
+from app.services.vector_store import QdrantVectorStore
 
 
 router = APIRouter(
@@ -29,10 +31,12 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 @lru_cache(maxsize=1)
 def get_embedding_service() -> EmbeddingService:
-    """
-    Load the embedding model once and reuse it.
-    """
     return EmbeddingService()
+
+
+@lru_cache(maxsize=1)
+def get_vector_store() -> QdrantVectorStore:
+    return QdrantVectorStore()
 
 
 @router.post("/upload")
@@ -118,8 +122,8 @@ async def upload_document(
                 detail="Document produced no chunks"
             )
 
+        # Generate embeddings
         embedding_service = get_embedding_service()
-
         embeddings = embedding_service.embed_texts(chunks)
 
         if len(embeddings) != len(chunks):
@@ -127,10 +131,39 @@ async def upload_document(
                 "Embedding count does not match chunk count"
             )
 
+        # Generate a unique ID for this upload
+        document_id = str(uuid4())
+
+        # Store vectors and metadata in Qdrant
+        try:
+            vector_store = get_vector_store()
+
+            vector_store.create_collection()
+
+            stored_count = vector_store.store_chunks(
+                document_id=document_id,
+                filename=file.filename,
+                chunks=chunks,
+                embeddings=embeddings
+            )
+
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="Unable to store document in vector database"
+            ) from exc
+
+        if stored_count != len(chunks):
+            raise HTTPException(
+                status_code=500,
+                detail="Not all document chunks were stored"
+            )
+
         return {
             "status": "success",
-            "message": "Document processed successfully",
+            "message": "Document processed and stored successfully",
             "document": {
+                "document_id": document_id,
                 "filename": result["filename"],
                 "file_type": result["file_type"],
                 "character_count": result["character_count"],
@@ -146,6 +179,10 @@ async def upload_document(
                 "model": "sentence-transformers/all-MiniLM-L6-v2",
                 "dimensions": VECTOR_SIZE,
                 "embedded_chunk_count": len(embeddings)
+            },
+            "storage": {
+                "vector_database": "Qdrant",
+                "stored_chunk_count": stored_count
             },
             "chunks": [
                 {

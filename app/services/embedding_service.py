@@ -1,4 +1,4 @@
-from math import isfinite
+﻿from math import isfinite
 from typing import Any
 
 
@@ -15,7 +15,7 @@ class EmbeddingService:
 
         self.model = model
 
-        dimension = self.model.get_sentence_embedding_dimension()
+        dimension = self.model.get_embedding_dimension()
 
         if dimension != VECTOR_SIZE:
             raise ValueError(

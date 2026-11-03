@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from app.services.embedding_service import (
     EmbeddingService,
@@ -7,7 +7,7 @@ from app.services.embedding_service import (
 
 
 class FakeModel:
-    def get_sentence_embedding_dimension(self):
+    def get_embedding_dimension(self):
         return VECTOR_SIZE
 
     def encode(self, texts, **kwargs):
@@ -52,7 +52,7 @@ def test_reject_empty_text():
 
 def test_reject_wrong_model_dimension():
     class WrongDimensionModel(FakeModel):
-        def get_sentence_embedding_dimension(self):
+        def get_embedding_dimension(self):
             return 128
 
     with pytest.raises(ValueError):
