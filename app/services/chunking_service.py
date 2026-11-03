@@ -23,7 +23,6 @@ def fixed_size_chunks(
 
     while start < len(text):
         end = start + chunk_size
-
         chunk = text[start:end].strip()
 
         if chunk:
@@ -117,32 +116,22 @@ def recursive_character_chunks(
 
     for piece in pieces:
 
-        candidate = current + piece
-
-        if len(candidate) <= chunk_size:
-            current = candidate
+        if len(current + piece) <= chunk_size:
+            current += piece
             continue
 
         if current.strip():
             chunks.append(current.strip())
 
-        # Retain trailing context from the previous chunk.
-        prefix = current[-overlap:] if overlap else ""
+        # Keep as much previous context as fits.
+        available_overlap = min(
+            overlap,
+            chunk_size - len(piece)
+        )
 
-        # If a piece itself is large, split it further.
-        if len(prefix + piece) > chunk_size:
-            current = prefix
+        prefix = current[-available_overlap:] if available_overlap else ""
 
-            for subpiece in split_recursively(piece):
-                if len(current + subpiece) <= chunk_size:
-                    current += subpiece
-                else:
-                    if current.strip():
-                        chunks.append(current.strip())
-
-                    current = current[-overlap:] + subpiece if overlap else subpiece
-        else:
-            current = prefix + piece
+        current = prefix + piece
 
     if current.strip():
         chunks.append(current.strip())
