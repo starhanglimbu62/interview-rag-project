@@ -4,7 +4,6 @@ from app.main import app
 
 client = TestClient(app)
 
-
 def test_upload_valid_txt():
     response = client.post(
         "/api/v1/documents/upload",
