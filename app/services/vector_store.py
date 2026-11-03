@@ -2,6 +2,7 @@ from math import isfinite
 from uuid import NAMESPACE_URL, uuid5
 from typing import Any
 
+from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
     VectorParams,
@@ -11,21 +12,11 @@ from qdrant_client.models import (
     FieldCondition,
     MatchValue
 )
-from qdrant_client import QdrantClient
-from qdrant_client.models import (
-    Distance,
-    VectorParams,
-    PointStruct,
-    Filter,
-    FieldCondition,
-    MatchValue
-)
 
 
 COLLECTION_NAME = "document_chunks"
 VECTOR_SIZE = 384
 QDRANT_URL = "http://localhost:6333"
-
 
 class QdrantVectorStore:
 
@@ -174,17 +165,21 @@ class QdrantVectorStore:
             for point in response.points
         ]
     def delete_document(self, document_id: str) -> None:
+        """
+        Delete all chunks belonging to a document.
+        """
+
         self.client.delete(
-        collection_name=COLLECTION_NAME,
-        points_selector=FilterSelector(
-            filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="document_id",
-                        match=MatchValue(value=document_id)
-                    )
-                ]
-            )
-        ),
-        wait=True
-    )
+            collection_name=COLLECTION_NAME,
+            points_selector=FilterSelector(
+                filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="document_id",
+                            match=MatchValue(value=document_id)
+                        )
+                    ]
+                )
+            ),
+            wait=True
+        )
