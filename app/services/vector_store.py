@@ -2,6 +2,15 @@ from math import isfinite
 from uuid import NAMESPACE_URL, uuid5
 from typing import Any
 
+from qdrant_client.models import (
+    Distance,
+    VectorParams,
+    PointStruct,
+    Filter,
+    FilterSelector,
+    FieldCondition,
+    MatchValue
+)
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -164,3 +173,18 @@ class QdrantVectorStore:
             }
             for point in response.points
         ]
+    def delete_document(self, document_id: str) -> None:
+        self.client.delete(
+        collection_name=COLLECTION_NAME,
+        points_selector=FilterSelector(
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="document_id",
+                        match=MatchValue(value=document_id)
+                    )
+                ]
+            )
+        ),
+        wait=True
+    )

@@ -31,11 +31,13 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 @lru_cache(maxsize=1)
 def get_embedding_service() -> EmbeddingService:
+    """Load the embedding model once and reuse it."""
     return EmbeddingService()
 
 
 @lru_cache(maxsize=1)
 def get_vector_store() -> QdrantVectorStore:
+    """Create and reuse the Qdrant client."""
     return QdrantVectorStore()
 
 
@@ -122,7 +124,6 @@ async def upload_document(
                 detail="Document produced no chunks"
             )
 
-        # Generate embeddings
         embedding_service = get_embedding_service()
         embeddings = embedding_service.embed_texts(chunks)
 
@@ -131,10 +132,8 @@ async def upload_document(
                 "Embedding count does not match chunk count"
             )
 
-        # Generate a unique ID for this upload
         document_id = str(uuid4())
 
-        # Store vectors and metadata in Qdrant
         try:
             vector_store = get_vector_store()
 
