@@ -15,10 +15,14 @@ class Settings:
         "http://localhost:11434"
     ).rstrip("/")
 
+
     ollama_model: str = os.getenv(
         "OLLAMA_MODEL",
         "qwen3:1.7b"
     )
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_ttl_seconds: int = int(os.getenv("REDIS_TTL_SECONDS", "86400"))
+    chat_history_limit: int = int(os.getenv("CHAT_HISTORY_LIMIT", "10"))
 
     llm_timeout_seconds: float = float(
         os.getenv("LLM_TIMEOUT_SECONDS", "120")

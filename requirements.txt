@@ -11,3 +11,6 @@ psycopg[binary]==3.3.7
 python-dotenv==1.2.4
 
 httpx>=0.27,<1.0
+
+# Conversation memory
+redis==6.4.0

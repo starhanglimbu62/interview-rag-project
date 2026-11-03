@@ -1,4 +1,4 @@
-﻿from typing import Any
+from typing import Any
 
 
 class RAGService:
@@ -30,7 +30,7 @@ Rules:
         embedding_service: Any,
         vector_store: Any,
         llm_service: Any,
-        top_k: int = 5
+        top_k: int = 5,
     ) -> None:
         if top_k <= 0:
             raise ValueError("top_k must be greater than zero")
@@ -43,87 +43,99 @@ Rules:
     def answer(
         self,
         question: str,
-        document_id: str | None = None
-    ) -> dict[str, Any]:
-        """Retrieve relevant chunks and generate a grounded answer."""
-
-        if not isinstance(question, str) or not question.strip():
+        document_id: str | None = None,
+        history: list[dict[str, str]] | None = None,
+    ) -> dict:
+        if not question or not question.strip():
             raise ValueError("Question cannot be empty")
 
-        question = question.strip()
+        if history is None:
+            history = []
+
+        if not isinstance(history, list):
+            raise ValueError("History must be a list")
+
+        conversation_messages = []
+
+        for message in history:
+            if (
+                not isinstance(message, dict)
+                or message.get("role") not in {"user", "assistant"}
+                or not isinstance(message.get("content"), str)
+                or not message["content"].strip()
+            ):
+                raise ValueError("Invalid conversation history")
+
+            conversation_messages.append({
+                "role": message["role"],
+                "content": message["content"].strip(),
+            })
 
         query_vector = self.embedding_service.embed_text(question)
 
-        retrieved_chunks = self.vector_store.search(
-            query_vector=query_vector,
+        chunks = self.vector_store.search(
+            query_vector,
             limit=self.top_k,
-            document_id=document_id
+            document_id=document_id,
         )
 
-        if not retrieved_chunks:
+        if not chunks:
             return {
                 "answer": self.NO_CONTEXT_ANSWER,
-                "sources": []
+                "sources": [],
             }
 
-        context_parts: list[str] = []
-        sources: list[dict[str, Any]] = []
+        context_parts = []
+        sources = []
 
-        for index, chunk in enumerate(retrieved_chunks, start=1):
-            source_id = f"S{index}"
-
-            filename = chunk.get("filename", "Unknown")
-            chunk_index = chunk.get("chunk_index")
-            document_id_value = chunk.get("document_id")
-            text = chunk.get("text", "")
+        for chunk in chunks:
+            text = chunk.get("text")
 
             if not isinstance(text, str) or not text.strip():
                 continue
 
+            source_id = f"S{len(sources) + 1}"
+
+            filename = chunk.get("filename", "Unknown")
+
             context_parts.append(
-                f"[{source_id}]\n"
-                f"Filename: {filename}\n"
-                f"Chunk index: {chunk_index}\n"
-                f"Content:\n{text.strip()}"
+                f"[{source_id}] (Source: {filename}) {text.strip()}"
             )
 
             sources.append({
                 "source_id": source_id,
-                "document_id": document_id_value,
-                "filename": filename,
-                "chunk_index": chunk_index,
-                "score": chunk.get("score")
+                "document_id": chunk.get("document_id"),
+                "filename": chunk.get("filename", "Unknown"),
+                "chunk_index": chunk.get("chunk_index"),
+                "score": chunk.get("score"),
             })
 
         if not context_parts:
             return {
                 "answer": self.NO_CONTEXT_ANSWER,
-                "sources": []
+                "sources": [],
             }
 
         context = "\n\n".join(context_parts)
 
-        user_prompt = (
-            f"Retrieved document context:\n\n"
-            f"{context}\n\n"
-            f"User question:\n{question}\n\n"
-            f"Answer using the retrieved context and cite your sources."
-        )
-
         messages = [
             {
                 "role": "system",
-                "content": self.SYSTEM_PROMPT
+                "content": self.SYSTEM_PROMPT,
             },
+            *conversation_messages,
             {
                 "role": "user",
-                "content": user_prompt
-            }
+                "content": (
+                    f"Retrieved document context:\n{context}\n\n"
+                    f"Current question: {question}"
+                ),
+            },
         ]
 
-        generated_answer = self.llm_service.generate(messages)
+        answer = self.llm_service.generate(messages)
 
         return {
-            "answer": generated_answer,
-            "sources": sources
+            "answer": answer,
+            "sources": sources,
         }
