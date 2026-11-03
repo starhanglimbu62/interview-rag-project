@@ -20,6 +20,16 @@ from app.services.embedding_service import (
 )
 from app.services.vector_store import QdrantVectorStore
 
+import logging
+
+from fastapi import Depends
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import Document
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/documents",
@@ -46,7 +56,8 @@ async def upload_document(
     file: UploadFile = File(...),
     chunking_strategy: str = Form("fixed_size"),
     chunk_size: int = Form(500),
-    overlap: int = Form(50)
+    overlap: int = Form(50),
+    db: Session = Depends(get_db)
 ) -> dict[str, object]:
 
     if not file.filename:
@@ -158,6 +169,46 @@ async def upload_document(
                 detail="Not all document chunks were stored"
             )
 
+        document = Document(
+            id=document_id,
+            filename=result["filename"],
+            file_type=result["file_type"],
+            character_count=result["character_count"],
+            page_count=result["page_count"],
+            chunk_count=len(chunks),
+            chunking_strategy=chunking_strategy,
+            chunk_size=chunk_size,
+            overlap=overlap,
+            embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+            vector_database="Qdrant",
+            status="ready"
+        )
+
+        try:
+            db.add(document)
+            db.commit()
+
+        except SQLAlchemyError as exc:
+            db.rollback()
+
+            logger.exception(
+                "Failed to save document metadata: %s",
+                document_id
+            )
+
+            try:
+                vector_store.delete_document(document_id)
+
+            except Exception:
+                logger.exception(
+                    "Failed to clean up Qdrant vectors for document: %s",
+                    document_id
+                )
+
+            raise HTTPException(
+                status_code=503,
+                detail="Unable to save document metadata"
+            ) from exc
         return {
             "status": "success",
             "message": "Document processed and stored successfully",
@@ -195,3 +246,4 @@ async def upload_document(
 
     finally:
         await file.close()
+

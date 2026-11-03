@@ -1,9 +1,10 @@
 ﻿import os
+from collections.abc import Generator
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 load_dotenv()
 
@@ -32,6 +33,7 @@ engine = create_engine(
     pool_pre_ping=True
 )
 
+
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
@@ -39,11 +41,8 @@ SessionLocal = sessionmaker(
 )
 
 
-def get_db():
-    """
-    Provide a database session for one API request.
-    Always close the session after the request.
-    """
+def get_db() -> Generator[Session, None, None]:
+    """Provide a database session for one API request."""
 
     db = SessionLocal()
 
