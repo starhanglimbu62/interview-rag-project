@@ -40,6 +40,28 @@ Rules:
         self.llm_service = llm_service
         self.top_k = top_k
 
+    def _build_retrieval_query(
+        self,
+        question: str,
+        history: list[dict[str, str]],
+    ) -> str:
+        """Build a retrieval query using recent conversation context."""
+
+        if not history:
+            return question.strip()
+
+        recent_history = history[-4:]
+
+        history_context = "\n".join(
+            f"{message['role']}: {message['content']}"
+            for message in recent_history
+        )
+
+        return (
+            f"Conversation context:\n{history_context}\n\n"
+            f"Current question: {question.strip()}"
+        )
+
     def answer(
         self,
         question: str,
@@ -71,7 +93,12 @@ Rules:
                 "content": message["content"].strip(),
             })
 
-        query_vector = self.embedding_service.embed_text(question)
+        retrieval_query = self._build_retrieval_query(
+            question,
+            conversation_messages,
+        )
+
+        query_vector = self.embedding_service.embed_text(retrieval_query)
 
         chunks = self.vector_store.search(
             query_vector,

@@ -174,3 +174,116 @@ def test_invalid_top_k_is_rejected():
             FakeLLMService(),
             top_k=0
         )
+
+
+def test_retrieval_query_without_history_is_original_question(rag_dependencies):
+    rag, _, _, _ = rag_dependencies
+
+    query = rag._build_retrieval_query(
+        "What are the limitations?",
+        []
+    )
+
+    assert query == "What are the limitations?"
+
+
+def test_retrieval_query_includes_conversation_context(rag_dependencies):
+    rag, _, _, _ = rag_dependencies
+
+    history = [
+        {
+            "role": "user",
+            "content": "Explain Nepal's data privacy provisions."
+        },
+        {
+            "role": "assistant",
+            "content": "They establish rules for personal data protection."
+        }
+    ]
+
+    query = rag._build_retrieval_query(
+        "What are the limitations?",
+        history
+    )
+
+    assert "Explain Nepal's data privacy provisions." in query
+    assert "personal data protection" in query
+    assert "What are the limitations?" in query
+
+
+def test_retrieval_query_uses_only_four_recent_messages(rag_dependencies):
+    rag, _, _, _ = rag_dependencies
+
+    history = [
+        {"role": "user", "content": "Old message 1"},
+        {"role": "assistant", "content": "Old message 2"},
+        {"role": "user", "content": "Recent message 1"},
+        {"role": "assistant", "content": "Recent message 2"},
+        {"role": "user", "content": "Recent message 3"},
+        {"role": "assistant", "content": "Recent message 4"}
+    ]
+
+    query = rag._build_retrieval_query(
+        "Current question",
+        history
+    )
+
+    assert "Old message 1" not in query
+    assert "Old message 2" not in query
+    assert "Recent message 1" in query
+    assert "Recent message 4" in query
+    assert "Current question" in query
+
+
+def test_embedding_uses_contextual_retrieval_query(rag_dependencies):
+    rag, embedding, _, _ = rag_dependencies
+
+    history = [
+        {
+            "role": "user",
+            "content": "Explain annual leave."
+        },
+        {
+            "role": "assistant",
+            "content": "Employees receive 15 days of annual leave."
+        }
+    ]
+
+    rag.answer(
+        "What about its duration?",
+        history=history
+    )
+
+    embedded_query = embedding.received_texts[0]
+
+    assert "Explain annual leave." in embedded_query
+    assert "15 days of annual leave" in embedded_query
+    assert "What about its duration?" in embedded_query
+
+
+def test_final_prompt_preserves_original_question(rag_dependencies):
+    rag, _, _, llm = rag_dependencies
+
+    history = [
+        {
+            "role": "user",
+            "content": "Explain annual leave."
+        },
+        {
+            "role": "assistant",
+            "content": "Employees receive 15 days."
+        }
+    ]
+
+    rag.answer(
+        "What about its duration?",
+        history=history
+    )
+
+    messages = llm.received_messages[0]
+
+    user_message = messages[-1]["content"]
+
+    assert "Current question: What about its duration?" in user_message
+    assert "Conversation context:" not in user_message
+
