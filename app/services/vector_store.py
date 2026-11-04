@@ -13,15 +13,16 @@ from qdrant_client.models import (
     MatchValue
 )
 
+from app.config import settings
+
 
 COLLECTION_NAME = "document_chunks"
 VECTOR_SIZE = 384
-QDRANT_URL = "http://localhost:6333"
 
 class QdrantVectorStore:
 
     def __init__(self, client: Any = None) -> None:
-        self.client = client or QdrantClient(url=QDRANT_URL)
+        self.client = client or QdrantClient(url=settings.qdrant_url)
 
     def create_collection(self) -> None:
         """

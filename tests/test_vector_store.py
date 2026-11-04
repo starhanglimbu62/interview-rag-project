@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 
 from qdrant_client import QdrantClient
 
@@ -25,6 +26,17 @@ def test_create_collection(vector_store):
     assert vector_store.client.collection_exists(
         COLLECTION_NAME
     )
+
+
+def test_uses_configured_qdrant_url():
+    with patch("app.services.vector_store.QdrantClient") as client_class:
+        with patch(
+            "app.services.vector_store.settings.qdrant_url",
+            "http://qdrant:6333",
+        ):
+            QdrantVectorStore()
+
+    client_class.assert_called_once_with(url="http://qdrant:6333")
 
 
 def test_store_chunks(vector_store):
